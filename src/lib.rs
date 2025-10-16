@@ -10,10 +10,13 @@
   unreachable_pub
 )]
 
+pub extern crate image;
 pub extern crate femtovg;
 pub extern crate glutin_winit;
 pub extern crate glutin;
 pub extern crate winit;
 
+#[macro_use]
+mod misc;
 pub mod engine;
 pub mod windowing;

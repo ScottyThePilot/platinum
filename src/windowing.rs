@@ -11,6 +11,8 @@ use winit::keyboard::{Key as LogicalKey, NamedKey, PhysicalKey, KeyCode};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Theme, Window, WindowId};
 
+use crate::misc::OptionExt;
+
 use std::marker::PhantomData;
 use std::mem::replace;
 use std::ops::Index;
@@ -737,17 +739,6 @@ impl<W: HasWindow> WindowState<W> {
   }
 }
 
-macro_rules! unwrap_unreachable {
-  ($expr:expr $(,)?) => (match $expr {
-    Some(v) => v,
-    None => unreachable!()
-  });
-  ($expr:expr, $($arg:tt)*) => (match $expr {
-    Some(v) => v,
-    None => unreachable!($($arg)*)
-  });
-}
-
 #[derive(Debug)]
 pub struct Application<W: HasWindow, H: EventHandler<W, T>, T: 'static = ()> {
   handler: Option<H>,
@@ -771,7 +762,7 @@ where W: HasWindow, H: EventHandler<W, T> {
 
   #[inline]
   fn decompose_mut(&mut self) -> (&mut H, &mut WindowState<W>) {
-    (unwrap_unreachable!(self.handler.as_mut()), &mut self.window_state)
+    (self.handler.as_mut().unwrap_unreachable(), &mut self.window_state)
   }
 }
 
@@ -831,6 +822,6 @@ where W: HasWindow, H: EventHandler<W, T> {
 
   #[allow(unused)]
   fn exiting(&mut self, event_loop: &ActiveEventLoop) {
-    unwrap_unreachable!(self.handler.take()).on_exited();
+    self.handler.take().unwrap_unreachable().on_exited();
   }
 }

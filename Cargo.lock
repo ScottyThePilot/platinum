@@ -557,6 +557,7 @@ dependencies = [
  "byteorder-lite",
  "moxcms",
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -1097,6 +1098,7 @@ dependencies = [
  "femtovg",
  "glutin",
  "glutin-winit",
+ "image",
  "serde",
  "winit",
 ]
