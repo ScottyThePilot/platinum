@@ -33,10 +33,6 @@ impl Handler {
 }
 
 impl EngineEventHandler for Handler {
-  fn init(&mut self, window_state: &EngineWindowState) {
-    window_state.window().theme();
-  }
-
   fn update(&mut self, window_state: &EngineWindowState) {
     let dt = self.swap_delta_time(Instant::now()).as_secs_f32();
     let (width, height) = window_state.window_size().into();

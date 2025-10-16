@@ -24,7 +24,7 @@ use std::sync::Arc;
 #[allow(unused_variables)]
 pub trait EventHandler<W: HasWindow, T = ()>: Sized + 'static {
   /// Called upon only the first [`Event::Resumed`][winit::event::Event::Resumed].
-  fn init(&mut self, window_state: &WindowState<W>);
+  fn init(&mut self, window_state: &WindowState<W>) {}
 
   /// Called upon [`Event::AboutToWait`][winit::event::Event::AboutToWait].
   fn update(&mut self, window_state: &WindowState<W>);

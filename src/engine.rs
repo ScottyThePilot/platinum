@@ -268,7 +268,6 @@ impl<H: EngineEventHandler<T>, T: 'static> EventHandler<WindowRef, T> for Engine
   fn on_resized(&mut self, window_state: &EngineWindowState, window_size: PhysicalSize<u32>, scale_factor: f64) {
     let PhysicalSize { width, height } = window_size;
     if let Some(width) = NonZero::new(width) && let Some(height) = NonZero::new(height) {
-      println!("resize: {width}, {height}");
       self.gl_window_surface.resize(&self.current_gl_context, width, height);
     };
 
@@ -313,7 +312,7 @@ pub type EngineWindowState = WindowState<WindowRef>;
 #[allow(unused_variables)]
 pub trait EngineEventHandler<T: 'static = ()>: Sized + 'static {
   /// See [`EventHandler::init`].
-  fn init(&mut self, window_state: &EngineWindowState);
+  fn init(&mut self, window_state: &EngineWindowState) {}
   /// See [`EventHandler::update`].
   fn update(&mut self, window_state: &EngineWindowState);
   /// See [`EventHandler::render`].
