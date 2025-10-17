@@ -238,46 +238,61 @@ struct EngineHandlerWrapper<H> {
   handler: H
 }
 
+macro_rules! delegate_engine {
+  ($vis:vis fn $name:ident(&mut self $(, $arg:ident : $Arg:ty)* $(,)?) $(-> $Ret:ty)?) => (
+    #[inline] $vis fn $name(&mut self, window_state: &EngineWindowState, $($arg: $Arg),*) $(-> $Ret)? {
+      self.handler.$name(EngineContext { window_state, canvas: &mut self.canvas }, $($arg),*)
+    }
+  );
+}
+
 impl<H: EngineEventHandler<T>, T: 'static> EventHandler<WindowRef, T> for EngineHandlerWrapper<H> {
-  delegate!(handler: fn init(&mut self, window_state: &EngineWindowState));
-  delegate!(handler: fn update(&mut self, window_state: &EngineWindowState));
+  delegate_engine!(fn init(&mut self));
+  delegate_engine!(fn update(&mut self));
 
   fn render(&mut self, window_state: &EngineWindowState) {
     let window = window_state.window();
-    let size = window.inner_size();
-    self.canvas.set_size(size.width, size.height, window.scale_factor() as f32);
-    self.handler.render(window_state, &mut self.canvas);
-    self.canvas.flush();
+
+    let PhysicalSize { width, height } = window.inner_size();
+    self.canvas.set_size(width, height, window.scale_factor() as f32);
+
+    let context = EngineContext { window_state, canvas: &mut self.canvas };
+    self.handler.render(context);
+
     window.pre_present_notify();
+
+    self.canvas.flush();
     self.gl_window_surface.swap_buffers(&self.current_gl_context)
       .expect("failed to swap opengl window surface buffers");
   }
 
   fn on_resized(&mut self, window_state: &EngineWindowState, window_size: PhysicalSize<u32>, scale_factor: f64) {
+
     let PhysicalSize { width, height } = window_size;
     if let Some(width) = NonZero::new(width) && let Some(height) = NonZero::new(height) {
       self.gl_window_surface.resize(&self.current_gl_context, width, height);
     };
 
-    self.handler.on_resized(window_state, window_size, scale_factor);
+    let context = EngineContext { window_state, canvas: &mut self.canvas };
+    self.handler.on_resized(context, window_size, scale_factor);
   }
 
-  delegate!(handler: fn on_user_event(&mut self, window_state: &EngineWindowState, event: T));
-  delegate!(handler: fn on_device_event(&mut self, window_state: &EngineWindowState, id: DeviceId, event: DeviceEvent));
-  delegate!(handler: fn on_keyboard_input(&mut self, window_state: &EngineWindowState, event: KeyEvent));
-  delegate!(handler: fn on_text_input(&mut self, window_state: &EngineWindowState, event: Ime));
-  delegate!(handler: fn on_cursor_moved(&mut self, window_state: &EngineWindowState, pos: PhysicalPosition<f32>));
-  delegate!(handler: fn on_mouse_input(&mut self, window_state: &EngineWindowState, state: ElementState, button: MouseButton));
-  delegate!(handler: fn on_mouse_scroll(&mut self, window_state: &EngineWindowState, delta: MouseScrollDelta));
-  delegate!(handler: fn on_gesture(&mut self, window_state: &EngineWindowState, gesture: Gesture));
-  delegate!(handler: fn on_touch(&mut self, window_state: &EngineWindowState, touch: Touch));
-  delegate!(handler: fn on_axis_motion(&mut self, window_state: &EngineWindowState, axis_motion: AxisMotion));
-  delegate!(handler: fn on_focus_changed(&mut self, window_state: &EngineWindowState, state: bool));
-  delegate!(handler: fn on_occlusion_changed(&mut self, window_state: &EngineWindowState, state: bool));
-  delegate!(handler: fn on_file_over(&mut self, window_state: &EngineWindowState, path: Option<PathBuf>, dropped: bool));
-  delegate!(handler: fn on_resumed(&mut self, window_state: &EngineWindowState));
-  delegate!(handler: fn on_suspended(&mut self, window_state: &EngineWindowState));
-  delegate!(handler: fn on_close_requested(&mut self, window_state: &EngineWindowState) -> bool);
+  delegate_engine!(fn on_user_event(&mut self, event: T));
+  delegate_engine!(fn on_device_event(&mut self, id: DeviceId, event: DeviceEvent));
+  delegate_engine!(fn on_keyboard_input(&mut self, event: KeyEvent));
+  delegate_engine!(fn on_text_input(&mut self, event: Ime));
+  delegate_engine!(fn on_cursor_moved(&mut self, pos: PhysicalPosition<f32>));
+  delegate_engine!(fn on_mouse_input(&mut self, state: ElementState, button: MouseButton));
+  delegate_engine!(fn on_mouse_scroll(&mut self, delta: MouseScrollDelta));
+  delegate_engine!(fn on_gesture(&mut self, gesture: Gesture));
+  delegate_engine!(fn on_touch(&mut self, touch: Touch));
+  delegate_engine!(fn on_axis_motion(&mut self, axis_motion: AxisMotion));
+  delegate_engine!(fn on_focus_changed(&mut self, state: bool));
+  delegate_engine!(fn on_occlusion_changed(&mut self, state: bool));
+  delegate_engine!(fn on_file_over(&mut self, path: Option<PathBuf>, dropped: bool));
+  delegate_engine!(fn on_resumed(&mut self));
+  delegate_engine!(fn on_suspended(&mut self));
+  delegate_engine!(fn on_close_requested(&mut self) -> bool);
   delegate!(handler: fn should_exit(&self, window_state: &EngineWindowState) -> bool);
   delegate!(handler: fn on_exited(self));
 }
@@ -297,48 +312,62 @@ impl<H: fmt::Debug> fmt::Debug for EngineHandlerWrapper<H> {
 pub type EngineCanvas = Canvas<OpenGl>;
 pub type EngineWindowState = WindowState<WindowRef>;
 
+pub struct EngineContext<'a> {
+  pub window_state: &'a EngineWindowState,
+  pub canvas: &'a mut EngineCanvas
+}
+
+impl<'a> fmt::Debug for EngineContext<'a> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("EngineContext")
+      .field("window_state", &self.window_state)
+      .field("canvas", &format_args!("Canvas"))
+      .finish()
+  }
+}
+
 #[allow(unused_variables)]
 pub trait EngineEventHandler<T: 'static = ()>: Sized + 'static {
   /// See [`EventHandler::init`].
-  fn init(&mut self, window_state: &EngineWindowState) {}
+  fn init(&mut self, context: EngineContext) {}
   /// See [`EventHandler::update`].
-  fn update(&mut self, window_state: &EngineWindowState);
+  fn update(&mut self, context: EngineContext);
   /// See [`EventHandler::render`].
-  fn render(&mut self, window_state: &EngineWindowState, canvas: &mut EngineCanvas);
+  fn render(&mut self, context: EngineContext);
   /// See [`EventHandler::on_user_event`].
-  fn on_user_event(&mut self, window_state: &EngineWindowState, event: T) {}
+  fn on_user_event(&mut self, context: EngineContext, event: T) {}
   /// See [`EventHandler::on_device_event`].
-  fn on_device_event(&mut self, window_state: &EngineWindowState, id: DeviceId, event: DeviceEvent) {}
+  fn on_device_event(&mut self, context: EngineContext, id: DeviceId, event: DeviceEvent) {}
   /// See [`EventHandler::on_keyboard_input`].
-  fn on_keyboard_input(&mut self, window_state: &EngineWindowState, event: KeyEvent) {}
+  fn on_keyboard_input(&mut self, context: EngineContext, event: KeyEvent) {}
   /// See [`EventHandler::on_text_input`].
-  fn on_text_input(&mut self, window_state: &EngineWindowState, event: Ime) {}
+  fn on_text_input(&mut self, context: EngineContext, event: Ime) {}
   /// See [`EventHandler::on_cursor_moved`].
-  fn on_cursor_moved(&mut self, window_state: &EngineWindowState, pos: PhysicalPosition<f32>) {}
+  fn on_cursor_moved(&mut self, context: EngineContext, pos: PhysicalPosition<f32>) {}
   /// See [`EventHandler::on_mouse_input`].
-  fn on_mouse_input(&mut self, window_state: &EngineWindowState, state: ElementState, button: MouseButton) {}
+  fn on_mouse_input(&mut self, context: EngineContext, state: ElementState, button: MouseButton) {}
   /// See [`EventHandler::on_mouse_scroll`].
-  fn on_mouse_scroll(&mut self, window_state: &EngineWindowState, delta: MouseScrollDelta) {}
+  fn on_mouse_scroll(&mut self, context: EngineContext, delta: MouseScrollDelta) {}
   /// See [`EventHandler::on_gesture`].
-  fn on_gesture(&mut self, window_state: &EngineWindowState, gesture: Gesture) {}
+  fn on_gesture(&mut self, context: EngineContext, gesture: Gesture) {}
   /// See [`EventHandler::on_touch`].
-  fn on_touch(&mut self, window_state: &EngineWindowState, touch: Touch) {}
+  fn on_touch(&mut self, context: EngineContext, touch: Touch) {}
   /// See [`EventHandler::on_axis_motion`].
-  fn on_axis_motion(&mut self, window_state: &EngineWindowState, axis_motion: AxisMotion) {}
+  fn on_axis_motion(&mut self, context: EngineContext, axis_motion: AxisMotion) {}
   /// See [`EventHandler::on_focus_changed`].
-  fn on_focus_changed(&mut self, window_state: &EngineWindowState, state: bool) {}
+  fn on_focus_changed(&mut self, context: EngineContext, state: bool) {}
   /// See [`EventHandler::on_occlusion_changed`].
-  fn on_occlusion_changed(&mut self, window_state: &EngineWindowState, state: bool) {}
+  fn on_occlusion_changed(&mut self, context: EngineContext, state: bool) {}
   /// See [`EventHandler::on_file_dropped`].
-  fn on_file_over(&mut self, window_state: &EngineWindowState, path: Option<PathBuf>, dropped: bool) {}
+  fn on_file_over(&mut self, context: EngineContext, path: Option<PathBuf>, dropped: bool) {}
   /// See [`EventHandler::on_resized`].
-  fn on_resized(&mut self, window_state: &EngineWindowState, window_size: PhysicalSize<u32>, scale_factor: f64) {}
+  fn on_resized(&mut self, context: EngineContext, window_size: PhysicalSize<u32>, scale_factor: f64) {}
   /// See [`EventHandler::on_resumed`].
-  fn on_resumed(&mut self, window_state: &EngineWindowState) {}
+  fn on_resumed(&mut self, context: EngineContext) {}
   /// See [`EventHandler::on_suspended`].
-  fn on_suspended(&mut self, window_state: &EngineWindowState) {}
+  fn on_suspended(&mut self, context: EngineContext) {}
   /// See [`EventHandler::on_close_requested`].
-  fn on_close_requested(&mut self, window_state: &EngineWindowState) -> bool { true }
+  fn on_close_requested(&mut self, context: EngineContext) -> bool { true }
   /// See [`EventHandler::should_exit`].
   fn should_exit(&self, window_state: &EngineWindowState) -> bool { false }
   /// See [`EventHandler::on_exited`].
