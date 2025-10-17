@@ -267,7 +267,6 @@ impl<H: EngineEventHandler<T>, T: 'static> EventHandler<WindowRef, T> for Engine
   }
 
   fn on_resized(&mut self, window_state: &EngineWindowState, window_size: PhysicalSize<u32>, scale_factor: f64) {
-
     let PhysicalSize { width, height } = window_size;
     if let Some(width) = NonZero::new(width) && let Some(height) = NonZero::new(height) {
       self.gl_window_surface.resize(&self.current_gl_context, width, height);

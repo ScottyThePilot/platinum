@@ -17,6 +17,6 @@ pub extern crate glutin;
 pub extern crate winit;
 
 #[macro_use]
-mod misc;
+pub mod misc;
 pub mod engine;
 pub mod windowing;
