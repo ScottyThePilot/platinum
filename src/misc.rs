@@ -4,9 +4,10 @@ use image::{Pixel, ImageBuffer};
 
 
 
-#[allow(unused)]
 pub(crate) trait OptionExt<T> {
+  #[allow(unused)]
   fn unwrap_unreachable(self) -> T;
+  #[allow(unused)]
   fn expect_unreachable(self, msg: &str) -> T;
 }
 
@@ -22,52 +23,71 @@ impl<T> OptionExt<T> for Option<T> {
 
 
 
-pub fn rgb_imgref_from_image<'i, T>(image: &'i ImageBuffer<image::Rgb<T>, Vec<T>>) -> ImgRef<'i, femtovg::rgb::Rgb<T>>
+pub trait ImageBufferExt {
+  type Pixel;
+
+  fn as_imgref(&self) -> ImgRef<'_, Self::Pixel>;
+  fn as_imgref_mut(&mut self) -> ImgRefMut<'_, Self::Pixel>;
+}
+
+impl<T> ImageBufferExt for ImageBuffer<image::Rgb<T>, Vec<T>>
 where image::Rgb<T>: Pixel<Subpixel = T> {
-  let (width, height) = image.dimensions();
-  ImgRef::new(image.as_pixels(), width as usize, height as usize)
+  type Pixel = femtovg::rgb::Rgb<T>;
+
+  fn as_imgref(&self) -> ImgRef<'_, Self::Pixel> {
+    let (width, height) = self.dimensions();
+    ImgRef::new(self.as_pixels(), width as usize, height as usize)
+  }
+
+  fn as_imgref_mut(&mut self) -> ImgRefMut<'_, Self::Pixel> {
+    let (width, height) = self.dimensions();
+    ImgRefMut::new(self.as_pixels_mut(), width as usize, height as usize)
+  }
 }
 
-pub fn rgb_imgrefmut_from_image<'i, T>(image: &'i mut ImageBuffer<image::Rgb<T>, Vec<T>>) -> ImgRefMut<'i, femtovg::rgb::Rgb<T>>
-where image::Rgb<T>: Pixel<Subpixel = T> {
-  let (width, height) = image.dimensions();
-  ImgRefMut::new(image.as_pixels_mut(), width as usize, height as usize)
-}
-
-pub fn rgb_alpha_imgref_from_image<'i, T>(image: &'i ImageBuffer<image::Rgba<T>, Vec<T>>) -> ImgRef<'i, femtovg::rgb::Rgba<T>>
+impl<T> ImageBufferExt for ImageBuffer<image::Rgba<T>, Vec<T>>
 where image::Rgba<T>: Pixel<Subpixel = T> {
-  let (width, height) = image.dimensions();
-  ImgRef::new(image.as_pixels(), width as usize, height as usize)
+  type Pixel = femtovg::rgb::Rgba<T>;
+
+  fn as_imgref(&self) -> ImgRef<'_, Self::Pixel> {
+    let (width, height) = self.dimensions();
+    ImgRef::new(self.as_pixels(), width as usize, height as usize)
+  }
+
+  fn as_imgref_mut(&mut self) -> ImgRefMut<'_, Self::Pixel> {
+    let (width, height) = self.dimensions();
+    ImgRefMut::new(self.as_pixels_mut(), width as usize, height as usize)
+  }
 }
 
-pub fn rgb_alpha_imgrefmut_from_image<'i, T>(image: &'i mut ImageBuffer<image::Rgba<T>, Vec<T>>) -> ImgRefMut<'i, femtovg::rgb::Rgba<T>>
-where image::Rgba<T>: Pixel<Subpixel = T> {
-  let (width, height) = image.dimensions();
-  ImgRefMut::new(image.as_pixels_mut(), width as usize, height as usize)
-}
-
-pub fn gray_imgref_from_image<'i, T>(image: &'i ImageBuffer<image::Luma<T>, Vec<T>>) -> ImgRef<'i, femtovg::rgb::Gray<T>>
+impl<T> ImageBufferExt for ImageBuffer<image::Luma<T>, Vec<T>>
 where image::Luma<T>: Pixel<Subpixel = T> {
-  let (width, height) = image.dimensions();
-  ImgRef::new(image.as_pixels(), width as usize, height as usize)
+  type Pixel = femtovg::rgb::Gray<T>;
+
+  fn as_imgref(&self) -> ImgRef<'_, Self::Pixel> {
+    let (width, height) = self.dimensions();
+    ImgRef::new(self.as_pixels(), width as usize, height as usize)
+  }
+
+  fn as_imgref_mut(&mut self) -> ImgRefMut<'_, Self::Pixel> {
+    let (width, height) = self.dimensions();
+    ImgRefMut::new(self.as_pixels_mut(), width as usize, height as usize)
+  }
 }
 
-pub fn gray_imgrefmut_from_image<'i, T>(image: &'i mut ImageBuffer<image::Luma<T>, Vec<T>>) -> ImgRefMut<'i, femtovg::rgb::Gray<T>>
-where image::Luma<T>: Pixel<Subpixel = T> {
-  let (width, height) = image.dimensions();
-  ImgRefMut::new(image.as_pixels_mut(), width as usize, height as usize)
-}
-
-pub fn gray_alpha_imgref_from_image<'i, T>(image: &'i ImageBuffer<image::LumaA<T>, Vec<T>>) -> ImgRef<'i, femtovg::rgb::GrayAlpha<T>>
+impl<T> ImageBufferExt for ImageBuffer<image::LumaA<T>, Vec<T>>
 where image::LumaA<T>: Pixel<Subpixel = T> {
-  let (width, height) = image.dimensions();
-  ImgRef::new(image.as_pixels(), width as usize, height as usize)
-}
+  type Pixel = femtovg::rgb::GrayAlpha<T>;
 
-pub fn gray_alpha_imgrefmut_from_image<'i, T>(image: &'i mut ImageBuffer<image::LumaA<T>, Vec<T>>) -> ImgRefMut<'i, femtovg::rgb::GrayAlpha<T>>
-where image::LumaA<T>: Pixel<Subpixel = T> {
-  let (width, height) = image.dimensions();
-  ImgRefMut::new(image.as_pixels_mut(), width as usize, height as usize)
+  fn as_imgref(&self) -> ImgRef<'_, Self::Pixel> {
+    let (width, height) = self.dimensions();
+    ImgRef::new(self.as_pixels(), width as usize, height as usize)
+  }
+
+  fn as_imgref_mut(&mut self) -> ImgRefMut<'_, Self::Pixel> {
+    let (width, height) = self.dimensions();
+    ImgRefMut::new(self.as_pixels_mut(), width as usize, height as usize)
+  }
 }
 
 
