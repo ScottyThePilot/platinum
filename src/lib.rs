@@ -14,9 +14,21 @@ pub extern crate image;
 pub extern crate femtovg;
 pub extern crate glutin_winit;
 pub extern crate glutin;
+pub extern crate mint;
 pub extern crate winit;
 
-#[macro_use]
-pub mod misc;
+macro_rules! delegate {
+  ($delegate:ident: $vis:vis fn $name:ident(&self $(, $arg:ident : $Arg:ty)* $(,)?) $(-> $Ret:ty)?) => (
+    #[inline] $vis fn $name(&self, $($arg: $Arg),*) $(-> $Ret)? { self.$delegate.$name($($arg),*) }
+  );
+  ($delegate:ident: $vis:vis fn $name:ident(&mut self $(, $arg:ident : $Arg:ty)* $(,)?) $(-> $Ret:ty)?) => (
+    #[inline] $vis fn $name(&mut self, $($arg: $Arg),*) $(-> $Ret)? { self.$delegate.$name($($arg),*) }
+  );
+  ($delegate:ident: $vis:vis fn $name:ident(self $(, $arg:ident : $Arg:ty)* $(,)?) $(-> $Ret:ty)?) => (
+    #[inline] $vis fn $name(self, $($arg: $Arg),*) $(-> $Ret)? { self.$delegate.$name($($arg),*) }
+  );
+}
+
+pub mod compat;
 pub mod engine;
 pub mod windowing;

@@ -4,25 +4,6 @@ use image::{Pixel, ImageBuffer};
 
 
 
-pub(crate) trait OptionExt<T> {
-  #[allow(unused)]
-  fn unwrap_unreachable(self) -> T;
-  #[allow(unused)]
-  fn expect_unreachable(self, msg: &str) -> T;
-}
-
-impl<T> OptionExt<T> for Option<T> {
-  fn unwrap_unreachable(self) -> T {
-    self.unwrap_or_else(|| unreachable!())
-  }
-
-  fn expect_unreachable(self, msg: &str) -> T {
-    self.unwrap_or_else(|| unreachable!("{msg}"))
-  }
-}
-
-
-
 pub trait ImageBufferExt {
   type Pixel;
 
@@ -88,18 +69,4 @@ where image::LumaA<T>: Pixel<Subpixel = T> {
     let (width, height) = self.dimensions();
     ImgRefMut::new(self.as_pixels_mut(), width as usize, height as usize)
   }
-}
-
-
-
-macro_rules! delegate {
-  ($delegate:ident: $vis:vis fn $name:ident(&self $(, $arg:ident : $Arg:ty)* $(,)?) $(-> $Ret:ty)?) => (
-    #[inline] $vis fn $name(&self, $($arg: $Arg),*) $(-> $Ret)? { self.$delegate.$name($($arg),*) }
-  );
-  ($delegate:ident: $vis:vis fn $name:ident(&mut self $(, $arg:ident : $Arg:ty)* $(,)?) $(-> $Ret:ty)?) => (
-    #[inline] $vis fn $name(&mut self, $($arg: $Arg),*) $(-> $Ret)? { self.$delegate.$name($($arg),*) }
-  );
-  ($delegate:ident: $vis:vis fn $name:ident(self $(, $arg:ident : $Arg:ty)* $(,)?) $(-> $Ret:ty)?) => (
-    #[inline] $vis fn $name(self, $($arg: $Arg),*) $(-> $Ret)? { self.$delegate.$name($($arg),*) }
-  );
 }

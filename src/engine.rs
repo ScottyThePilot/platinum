@@ -229,6 +229,7 @@ impl<H: EngineEventHandler<T>, T: 'static> Engine<H, T> {
 
 
 
+#[derive(Debug)]
 struct EngineHandlerWrapper<H> {
   current_gl_context: PossiblyCurrentContext,
   #[allow(unused)]
@@ -296,33 +297,13 @@ impl<H: EngineEventHandler<T>, T: 'static> EventHandler<WindowRef, T> for Engine
   delegate!(handler: fn on_exited(self));
 }
 
-impl<H: fmt::Debug> fmt::Debug for EngineHandlerWrapper<H> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("EngineHandlerWrapper")
-      .field("current_gl_context", &self.current_gl_context)
-      .field("gl_display", &self.gl_display)
-      .field("gl_window_surface", &self.gl_window_surface)
-      .field("canvas", &format_args!("Canvas"))
-      .field("handler", &self.handler)
-      .finish()
-  }
-}
-
 pub type EngineCanvas = Canvas<OpenGl>;
 pub type EngineWindowState = WindowState<WindowRef>;
 
+#[derive(Debug)]
 pub struct EngineContext<'a> {
   pub window_state: &'a EngineWindowState,
   pub canvas: &'a mut EngineCanvas
-}
-
-impl<'a> fmt::Debug for EngineContext<'a> {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("EngineContext")
-      .field("window_state", &self.window_state)
-      .field("canvas", &format_args!("Canvas"))
-      .finish()
-  }
 }
 
 #[allow(unused_variables)]
