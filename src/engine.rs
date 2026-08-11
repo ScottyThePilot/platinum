@@ -12,7 +12,7 @@ use winit::event_loop::{EventLoop, EventLoopBuilder};
 use winit::raw_window_handle::HasWindowHandle;
 use winit::window::{Window, WindowAttributes};
 
-use crate::windowing::{Application, AxisMotion, EventHandler, Gesture, WindowState};
+use crate::windowing::{Application, AxisMotion, EventHandler, Gesture, HasWindow, WindowState};
 
 use std::fmt;
 use std::num::NonZero;
@@ -227,6 +227,13 @@ impl<H: EngineEventHandler<T>, T: 'static> Engine<H, T> {
   }
 }
 
+impl<H: EngineEventHandler<T>, T: 'static> HasWindow for Engine<H, T> {
+  #[inline]
+  fn get_window(&self) -> &Window {
+    self.window()
+  }
+}
+
 
 
 #[derive(Debug)]
@@ -300,6 +307,7 @@ impl<H: EngineEventHandler<T>, T: 'static> EventHandler<WindowRef, T> for Engine
 pub type EngineCanvas = Canvas<OpenGl>;
 pub type EngineWindowState = WindowState<WindowRef>;
 
+#[non_exhaustive]
 #[derive(Debug)]
 pub struct EngineContext<'a> {
   pub window_state: &'a EngineWindowState,
