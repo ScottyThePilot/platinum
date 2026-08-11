@@ -1,3 +1,5 @@
+//! A set of utilities for handling window events.
+
 use ahash::AHashSet;
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
@@ -454,26 +456,44 @@ pub struct MouseAction {
   pub state: ElementState
 }
 
+/// Describes a gesture made by a touch device.
+///
+/// See:
+/// - [`WindowEvent::PinchGesture`]
+/// - [`WindowEvent::PanGesture`]
+/// - [`WindowEvent::DoubleTapGesture`]
+/// - [`WindowEvent::RotationGesture`]
+/// - [`WindowEvent::TouchpadPressure`]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Gesture {
+  /// See [`WindowEvent::PinchGesture`].
+  #[allow(missing_docs)]
   Pinch {
     device_id: DeviceId,
     delta: f64,
     phase: TouchPhase
   },
+  /// See [`WindowEvent::PanGesture`].
+  #[allow(missing_docs)]
   Pan {
     device_id: DeviceId,
     delta: PhysicalPosition<f32>,
     phase: TouchPhase
   },
+  /// See [`WindowEvent::DoubleTapGesture`].
+  #[allow(missing_docs)]
   DoubleTap {
     device_id: DeviceId
   },
+  /// See [`WindowEvent::RotationGesture`].
+  #[allow(missing_docs)]
   Rotation {
     device_id: DeviceId,
     delta: f32,
     phase: TouchPhase
   },
+  /// See [`WindowEvent::TouchpadPressure`].
+  #[allow(missing_docs)]
   TouchpadPressure {
     device_id: DeviceId,
     pressure: f32,
@@ -482,6 +502,7 @@ pub enum Gesture {
 }
 
 impl Gesture {
+  /// The [`DeviceId`] of this gesture.
   pub const fn device_id(&self) -> DeviceId {
     match *self {
       Self::Pinch { device_id, .. } => device_id,
@@ -754,6 +775,7 @@ where W: HasWindow, H: EventHandler<W, T> {
     }
   }
 
+  /// A shortcut for .
   pub fn run(&mut self, event_loop: EventLoop<T>) -> Result<(), EventLoopError> {
     event_loop.run_app(self)
   }

@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 use femtovg::{Canvas, Color, FillRule, ImageId, Paint, Path, Renderer, Solidity, Transform2D};
 use mint::{Point2, Vector2};
 

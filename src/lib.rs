@@ -1,3 +1,6 @@
+//! A bare-bones wrapper library around `femtovg` and `winit`
+//! for quickly setting up graphics programs.
+
 #![warn(
   absolute_paths_not_starting_with_crate,
   redundant_imports,
@@ -6,6 +9,7 @@
   deprecated_in_future,
   missing_copy_implementations,
   missing_debug_implementations,
+  missing_docs,
   unnameable_types,
   unreachable_pub
 )]

@@ -4,10 +4,15 @@ use image::{Pixel, ImageBuffer};
 
 
 
+/// A utility trait for performing conversion of [`ImageBuffer`]s into [`ImgRef`]s or [`ImgRefMut`]s.
 pub trait ImageBufferExt {
+  /// The `Pixel` type for any resultant [`ImgRef`]s or [`ImgRefMut`]s.
   type Pixel;
 
+  /// Gets this [`ImageBuffer`] as an [`ImgRef`].
   fn as_imgref(&self) -> ImgRef<'_, Self::Pixel>;
+
+  /// Gets this [`ImageBuffer`] as an [`ImgRefMut`].
   fn as_imgref_mut(&mut self) -> ImgRefMut<'_, Self::Pixel>;
 }
 

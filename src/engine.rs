@@ -1,3 +1,7 @@
+//! A set of utilities for handling a [`femtovg`] [`Canvas`] using its [`glutin`]-backed [`OpenGl`] renderer.
+//!
+//! Window handling is done with the [`windowing`][crate::windowing] module.
+
 use femtovg::renderer::OpenGl;
 use femtovg::Canvas;
 use glutin::surface::{Surface, SurfaceAttributesBuilder, WindowSurface};
@@ -21,6 +25,9 @@ use std::rc::Rc;
 
 
 
+/// When building an [`Engine`], a [`Config`] must be picked.
+/// This is the default procedure for picking a config, which prioritizes
+/// transparency support and maximum samples.
 pub fn default_gl_config_picker(configs: Box<dyn Iterator<Item = Config> + '_>) -> Config {
   configs
     .reduce(|prev_config, config| {
@@ -36,8 +43,10 @@ pub fn default_gl_config_picker(configs: Box<dyn Iterator<Item = Config> + '_>) 
     .unwrap()
 }
 
+/// An alias to `Rc<Window>`.
 pub type WindowRef = Rc<Window>;
 
+/// A builder for [`Engine`].
 pub struct EngineBuilder<T: 'static = ()> {
   event_loop_builder: EventLoopBuilder<T>,
   window_attributes: Option<WindowAttributes>,
@@ -47,41 +56,49 @@ pub struct EngineBuilder<T: 'static = ()> {
 }
 
 impl EngineBuilder {
+  /// Creates an [`EngineBuilder`] with the default user event type `()`, akin to [`EventLoop::new`].
   pub fn new_without_user_event() -> Self {
     Self::default()
   }
 }
 
 impl<T: 'static> EngineBuilder<T> {
+  /// Creates an [`EngineBuilder`] with the specified user event type, akin to [`EventLoop::with_user_event`].
   pub fn new() -> Self {
     Self::default()
   }
 
+  /// Offers the caller mutable access to the [`EventLoopBuilder`] so the caller may call builder methods on it.
   pub fn with_event_loop_builder(mut self, operate: impl FnOnce(&mut EventLoopBuilder<T>) -> &mut EventLoopBuilder<T>) -> Self {
     operate(&mut self.event_loop_builder);
     self
   }
 
+  /// Specifies the [`WindowAttributes`] to be used in the [`DisplayBuilder`] if desired.
   pub fn with_window_attributes(mut self, window_attributes: Option<WindowAttributes>) -> Self {
     self.window_attributes = window_attributes;
     self
   }
 
+  /// Specifies the [`ApiPreference`] to be used in the [`DisplayBuilder`].
   pub fn with_gl_api_preference(mut self, gl_api_preference: ApiPreference) -> Self {
     self.gl_api_preference = gl_api_preference;
     self
   }
 
+  /// Specifies the [`ConfigTemplateBuilder`] to be used in building the [`DisplayBuilder`].
   pub fn with_gl_config_template_builder(mut self, operate: impl FnOnce(ConfigTemplateBuilder) -> ConfigTemplateBuilder) -> Self {
     self.gl_config_template_builder = operate(self.gl_config_template_builder);
     self
   }
 
+  /// Specifies a function that will pick a [`Config`].
   pub fn with_gl_config_picker(mut self, gl_config_picker: fn(Box<dyn Iterator<Item = Config> + '_>) -> Config) -> Self {
     self.gl_config_picker = gl_config_picker;
     self
   }
 
+  /// Consumes the [`EngineBuilder`], creating an [`Engine`].
   pub fn create<H: EngineEventHandler<T>>(self, handler: H) -> Engine<H, T> {
     let (event_loop, current_gl_context, gl_display, gl_window_surface, window) = self.build_parts();
     let window = Rc::new(window);
@@ -203,6 +220,15 @@ impl<T: 'static> fmt::Debug for EngineBuilder<T> {
 
 
 #[derive(Debug)]
+/// A structure that wraps:
+/// - An [`EventLoop`].
+/// - An [`Application`]:
+///   - A GL context, display and surface.
+///   - A [`Canvas`].
+///   - An [`EngineEventHandler`], as specified by the user.
+/// - A [`WindowRef`].
+///
+/// Once you have an engine, you'll want to [`run`][Engine::run] it.
 pub struct Engine<H: EngineEventHandler<T>, T: 'static = ()> {
   event_loop: EventLoop<T>,
   application: Application<WindowRef, EngineHandlerWrapper<H>, T>,
@@ -218,6 +244,7 @@ impl<H: EngineEventHandler<T>, T: 'static> Engine<H, T> {
     &self.event_loop
   }
 
+  /// Runs the [`Engine`]'s event loop on the calling thread.
   pub fn run(self) {
     let Engine { event_loop, mut application, window } = self;
     event_loop.run_app(&mut application)
@@ -236,6 +263,7 @@ impl<H: EngineEventHandler<T>, T: 'static> HasWindow for Engine<H, T> {
 
 
 
+/// An implementor of [`EventHandler`] for the purposes of [`Engine`].
 #[derive(Debug)]
 struct EngineHandlerWrapper<H> {
   current_gl_context: PossiblyCurrentContext,
@@ -304,16 +332,22 @@ impl<H: EngineEventHandler<T>, T: 'static> EventHandler<WindowRef, T> for Engine
   delegate!(handler: fn on_exited(self));
 }
 
+/// An alias to [`Canvas<OpenGl>`].
 pub type EngineCanvas = Canvas<OpenGl>;
+/// An alias to [`WindowState<WindowRef>`].
 pub type EngineWindowState = WindowState<WindowRef>;
 
+/// Gives access to a [`EngineCanvas`] and a [`EngineWindowState`] within a [`EngineEventHandler`] method.
 #[non_exhaustive]
 #[derive(Debug)]
 pub struct EngineContext<'a> {
+  /// The [`EngineWindowState`].
   pub window_state: &'a EngineWindowState,
+  /// The [`EngineCanvas`].
   pub canvas: &'a mut EngineCanvas
 }
 
+/// An extended verison of [`EventHandler`] for use specifically with an [`Engine`].
 #[allow(unused_variables)]
 pub trait EngineEventHandler<T: 'static = ()>: Sized + 'static {
   /// See [`EventHandler::init`].

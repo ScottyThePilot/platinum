@@ -1,3 +1,5 @@
+//! Compatibility utilities and extension traits.
+
 mod image;
 mod mint;
 
