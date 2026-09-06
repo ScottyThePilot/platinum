@@ -9,7 +9,7 @@ use winit::error::EventLoopError;
 use winit::event::{
   AxisId, DeviceEvent, DeviceId, ElementState, Ime, KeyEvent, Modifiers, MouseButton, MouseScrollDelta, StartCause, Touch, TouchPhase, WindowEvent
 };
-use winit::keyboard::{Key as LogicalKey, NamedKey, PhysicalKey, KeyCode};
+use winit::keyboard::{Key as LogicalKey, KeyCode, KeyLocation, NamedKey, PhysicalKey};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Theme, Window, WindowId};
 
@@ -111,6 +111,7 @@ pub trait EventHandler<W: HasWindow, T = ()>: Sized + 'static {
   fn on_exited(self) {}
 }
 
+/// The state of user input at a given moment.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InputState {
   cursor_pos: Option<PhysicalPosition<f32>>,
@@ -132,16 +133,22 @@ pub struct InputState {
 }
 
 impl InputState {
+  /// The current position of the cursor as of the most recent or current frame.
   #[inline]
   pub fn cursor_pos(&self) -> Option<PhysicalPosition<f32>> {
     self.cursor_pos
   }
 
+  /// The position the cursor was at one frame ago, if available.
   #[inline]
   pub fn cursor_pos_prev(&self) -> Option<PhysicalPosition<f32>> {
     self.cursor_pos_prev
   }
 
+  /// The difference between the cursor's current position and its position one frame ago.
+  ///
+  /// Adding this value to [`cursor_pos_prev`][InputState::cursor_pos_prev]
+  /// will give back the value of [`cursor_pos`][InputState::cursor_pos].
   #[inline]
   pub fn cursor_pos_rel(&self) -> Option<PhysicalPosition<f32>> {
     if let (Some(pos), Some(pos_prev)) = (self.cursor_pos, self.cursor_pos_prev) {
@@ -236,26 +243,32 @@ impl InputState {
     self.has_cursor_not_moved && !self.was_cursor_moving()
   }
 
+  /// The current keyboard modifiers state. See [`Modifiers`].
   #[inline]
   pub fn modifiers(&self) -> Modifiers {
     self.modifiers
   }
 
+  /// The full list of touch device gestures that have been made since the last frame. See [`Gesture`].
   #[inline]
   pub fn gestures(&self) -> &[Gesture] {
     &self.gestures
   }
 
+  /// The full list of touch events that have been made since the last frame. See [`Touch`].
   #[inline]
   pub fn touches(&self) -> &[Touch] {
     &self.touches
   }
 
+  /// The full list of analog axis motions made by input devices. See [`AxisMotion`].
   #[inline]
   pub fn axis_motions(&self) -> &[AxisMotion] {
     &self.axis_motions
   }
 
+  /// Calculates the sum of all motion made along an analog axis by an input device.
+  /// Can optionally filter for a specific device, or include all devices.
   pub fn axis_motion_for(&self, axis: AxisId, device_id: Option<DeviceId>) -> f64 {
     if let Some(device_id) = device_id {
       self.axis_motions.iter()
@@ -271,6 +284,8 @@ impl InputState {
     }
   }
 
+  /// Indicates whether or not there were any inputs made concerning an analog axis by an input device.
+  /// Can optionally filter for a specific device, or include all devices.
   pub fn was_axis_moving(&self, axis: AxisId, device_id: Option<DeviceId>) -> bool {
     if let Some(device_id) = device_id {
       self.axis_motions.iter()
@@ -311,6 +326,7 @@ impl InputState {
     self.key_actions.push(KeyAction {
       physical_key: event.physical_key,
       logical_key: event.logical_key.clone(),
+      location: event.location,
       state: match event.state {
         ElementState::Pressed if event.repeat => KeyActionState::Repeating,
         ElementState::Pressed => KeyActionState::Pressed,
@@ -416,8 +432,17 @@ impl Index<MouseButton> for InputState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum KeyActionState {
+  /// The button is pressed.
+  ///
+  /// This is emitted when a [`ElementState::Pressed`] is encountered.
   Pressed,
+  /// The button repeated while being pressed.
+  ///
+  /// This is emitted when a [`ElementState::Pressed`] is encountered while [`KeyEvent.pressed`][KeyEvent] is `true`.
   Repeating,
+  /// The button is released.
+  ///
+  /// This is emitted when a [`ElementState::Released`] is encountered.
   Released
 }
 
@@ -431,24 +456,35 @@ impl From<KeyActionState> for ElementState {
   }
 }
 
+/// A keyboard input or action.
+///
+/// See [`WindowEvent::KeyboardInput`].
+#[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KeyAction {
   pub physical_key: PhysicalKey,
   pub logical_key: LogicalKey,
+  pub location: KeyLocation,
   pub state: KeyActionState
 }
 
 impl KeyAction {
+  /// Checks this action against a [`PhysicalKey`] and [`KeyActionState`].
   pub fn is_physical(&self, physical_key: &PhysicalKey, state: KeyActionState) -> bool {
     self.physical_key == *physical_key && self.state == state
   }
 
+  /// Checks this action against a [`LogicalKey`] and [`KeyActionState`].
   pub fn is_logical(&self, logical_key: &LogicalKey, state: KeyActionState) -> bool {
     self.logical_key == *logical_key && self.state == state
   }
 }
 
+/// A mouse input or action.
+///
+/// See [`WindowEvent::MouseInput`].
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MouseAction {
@@ -514,18 +550,25 @@ impl Gesture {
   }
 }
 
+/// Motion made by an input device on some analog axis.
+///
+/// See [`WindowEvent::AxisMotion`].
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AxisMotion {
-  device_id: DeviceId,
-  axis: AxisId,
-  value: f64
+  pub device_id: DeviceId,
+  pub axis: AxisId,
+  pub value: f64
 }
 
 
 
+/// Represents types that are 'window-like' or hold a window.
 pub trait HasWindow {
+  /// Gets the window held by this type.
   fn get_window(&self) -> &Window;
 
+  /// Gets the ID of the window held by this type.
   fn get_window_id(&self) -> WindowId {
     self.get_window().id()
   }
@@ -559,6 +602,7 @@ impl_has_window_deref!(
 
 
 
+/// The state of the window at a given moment.
 #[derive(Debug, Clone)]
 pub struct WindowState<W: HasWindow> {
   initialized: bool,
@@ -587,16 +631,21 @@ impl<W: HasWindow> WindowState<W> {
     self.dropped_file = None;
   }
 
+  /// The current [`InputState`].
   #[inline]
   pub fn input(&self) -> &InputState {
     &self.input_state
   }
 
+  /// The path to any file dropped since the last frame.
+  ///
+  /// Multiple files dropped per frame is not supported, and all but the last file will be discarded.
   #[inline]
   pub fn dropped_file(&self) -> Option<&Path> {
     self.dropped_file.as_deref()
   }
 
+  /// The cached scale factor of the window.
   #[inline]
   pub fn scale_factor(&self) -> f64 {
     self.scale_factor
@@ -627,16 +676,19 @@ impl<W: HasWindow> WindowState<W> {
     self.window().is_minimized()
   }
 
+  /// The cached dimensions of the window.
   #[inline]
   pub fn window_size(&self) -> PhysicalSize<u32> {
     self.window_size
   }
 
+  /// The [`Window`] tied to this [`WindowState`]
   #[inline]
   pub fn window(&self) -> &Window {
     self.window_holder.get_window()
   }
 
+  /// The window holder ([`HasWindow`]) tied to this [`WindowState`].
   #[inline]
   pub fn window_holder(&self) -> &W {
     &self.window_holder
@@ -652,6 +704,12 @@ impl<W: HasWindow> WindowState<W> {
     }
   }
 
+  /// This handles a [`WindowEvent`] given an event loop and an [`EventHandler`] to delegate them to.
+  ///
+  /// You usually do not need to call this manually, as an [`Application`] and [`EventHandler`]
+  /// will call this for you (via [`EventHandler::on_window_event`]).
+  ///
+  /// See [`EventHandler::on_window_event`] for more information.
   pub fn handle_window_event<T, H: EventHandler<W, T>>(&mut self, handler: &mut H, event: WindowEvent, event_loop: &ActiveEventLoop) {
     match event {
       WindowEvent::CloseRequested => {
@@ -758,6 +816,7 @@ impl<W: HasWindow> WindowState<W> {
   }
 }
 
+/// Wraps a winit [`Window`] and an [`EventHandler`], making them usable as a [`ApplicationHandler`].
 #[derive(Debug)]
 pub struct Application<W: HasWindow, H: EventHandler<W, T>, T: 'static = ()> {
   handler: Option<H>,
@@ -767,6 +826,7 @@ pub struct Application<W: HasWindow, H: EventHandler<W, T>, T: 'static = ()> {
 
 impl<W, H, T: 'static> Application<W, H, T>
 where W: HasWindow, H: EventHandler<W, T> {
+  /// Creates a new [`Application`].
   pub fn new(window: W, handler: H) -> Self {
     Application {
       handler: Some(handler),
@@ -775,7 +835,7 @@ where W: HasWindow, H: EventHandler<W, T> {
     }
   }
 
-  /// A shortcut for .
+  /// A shortcut for [`EventLoop::run_app`].
   pub fn run(&mut self, event_loop: EventLoop<T>) -> Result<(), EventLoopError> {
     event_loop.run_app(self)
   }

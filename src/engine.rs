@@ -236,10 +236,12 @@ pub struct Engine<H: EngineEventHandler<T>, T: 'static = ()> {
 }
 
 impl<H: EngineEventHandler<T>, T: 'static> Engine<H, T> {
+  /// Gets a reference to the [`WindowRef`] contained by this [`Engine`].
   pub fn window(&self) -> &WindowRef {
     &self.window
   }
 
+  /// Gets a reference to the [`EventLoop`] contained by this [`Engine`].
   pub fn event_loop(&self) -> &EventLoop<T> {
     &self.event_loop
   }
