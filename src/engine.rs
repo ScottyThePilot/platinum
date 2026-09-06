@@ -6,7 +6,7 @@ use femtovg::renderer::OpenGl;
 use femtovg::Canvas;
 use glutin::surface::{Surface, SurfaceAttributesBuilder, WindowSurface};
 use glutin_winit::{ApiPreference, DisplayBuilder, GlWindow};
-use glutin::config::{Config, ConfigTemplateBuilder};
+use glutin::config::{ColorBufferType, Config, ConfigTemplateBuilder};
 use glutin::context::{ContextApi, ContextAttributesBuilder, NotCurrentContext, PossiblyCurrentContext, Version};
 use glutin::display::{Display, GetGlDisplay};
 use glutin::prelude::*;
@@ -26,25 +26,31 @@ use std::rc::Rc;
 
 
 /// When building an [`Engine`], a [`Config`] must be picked.
-/// This is the default procedure for picking a config, which prioritizes
-/// transparency support and maximum samples.
+/// This is the default procedure for picking a config,
+/// which prioritizes maximum samples and hardware acceleration.
 pub fn default_gl_config_picker(configs: Box<dyn Iterator<Item = Config> + '_>) -> Config {
   configs
-    .reduce(|prev_config, config| {
-      let transparency_check = config.supports_transparency().unwrap_or(false)
-        && !prev_config.supports_transparency().unwrap_or(false);
+    .max_by(|prev_config, next_config| {
+      let num_samples = Ord::cmp(
+        &prev_config.num_samples(),
+        &next_config.num_samples()
+      );
 
-      if transparency_check || config.num_samples() > prev_config.num_samples() {
-        config
-      } else {
-        prev_config
-      }
+      let hardware_accelerated = Ord::cmp(
+        &prev_config.hardware_accelerated(),
+        &next_config.hardware_accelerated()
+      );
+
+      num_samples.then(hardware_accelerated)
     })
-    .unwrap()
+    .expect("failed to select gl config")
 }
 
 /// An alias to `Rc<Window>`.
 pub type WindowRef = Rc<Window>;
+
+/// A function that picks a [`Config`]
+pub type ConfigPicker = fn(Box<dyn Iterator<Item = Config> + '_>) -> Config;
 
 /// A builder for [`Engine`].
 pub struct EngineBuilder<T: 'static = ()> {
@@ -52,7 +58,7 @@ pub struct EngineBuilder<T: 'static = ()> {
   window_attributes: Option<WindowAttributes>,
   gl_api_preference: ApiPreference,
   gl_config_template_builder: ConfigTemplateBuilder,
-  gl_config_picker: fn(Box<dyn Iterator<Item = Config> + '_>) -> Config
+  gl_config_picker: ConfigPicker
 }
 
 impl EngineBuilder {
@@ -93,7 +99,7 @@ impl<T: 'static> EngineBuilder<T> {
   }
 
   /// Specifies a function that will pick a [`Config`].
-  pub fn with_gl_config_picker(mut self, gl_config_picker: fn(Box<dyn Iterator<Item = Config> + '_>) -> Config) -> Self {
+  pub fn with_gl_config_picker(mut self, gl_config_picker: ConfigPicker) -> Self {
     self.gl_config_picker = gl_config_picker;
     self
   }
@@ -124,7 +130,9 @@ impl<T: 'static> EngineBuilder<T> {
     let event_loop = self.event_loop_builder.build()
       .expect("failed to build event loop");
 
-    let gl_config_template_builder = self.gl_config_template_builder.with_alpha_size(8);
+    let gl_config_template_builder = self.gl_config_template_builder
+      .with_buffer_type(ColorBufferType::Rgb { r_size: 8, g_size: 8, b_size: 8 })
+      .with_alpha_size(8);
     let gl_display_builder = DisplayBuilder::new()
       .with_preference(self.gl_api_preference)
       .with_window_attributes(self.window_attributes);
@@ -219,7 +227,6 @@ impl<T: 'static> fmt::Debug for EngineBuilder<T> {
 
 
 
-#[derive(Debug)]
 /// A structure that wraps:
 /// - An [`EventLoop`].
 /// - An [`Application`]:
@@ -229,6 +236,7 @@ impl<T: 'static> fmt::Debug for EngineBuilder<T> {
 /// - A [`WindowRef`].
 ///
 /// Once you have an engine, you'll want to [`run`][Engine::run] it.
+#[derive(Debug)]
 pub struct Engine<H: EngineEventHandler<T>, T: 'static = ()> {
   event_loop: EventLoop<T>,
   application: Application<WindowRef, EngineHandlerWrapper<H>, T>,
