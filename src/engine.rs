@@ -14,13 +14,12 @@ use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::{DeviceEvent, DeviceId, ElementState, Ime, KeyEvent, MouseButton, MouseScrollDelta, Touch};
 use winit::event_loop::{EventLoop, EventLoopBuilder};
 use winit::raw_window_handle::HasWindowHandle;
-use winit::window::{Window, WindowAttributes};
+use winit::window::{Theme, Window, WindowAttributes};
 
-use crate::windowing::{Application, AxisMotion, EventHandler, Gesture, HasWindow, WindowState};
+use crate::windowing::{Application, AxisMotion, EventHandler, FileDrag, Gesture, HasWindow, WindowState};
 
 use std::fmt;
 use std::num::NonZero;
-use std::path::PathBuf;
 use std::rc::Rc;
 
 
@@ -334,7 +333,8 @@ impl<H: EngineEventHandler<T>, T: 'static> EventHandler<WindowRef, T> for Engine
   delegate_engine!(fn on_axis_motion(&mut self, axis_motion: AxisMotion));
   delegate_engine!(fn on_focus_changed(&mut self, state: bool));
   delegate_engine!(fn on_occlusion_changed(&mut self, state: bool));
-  delegate_engine!(fn on_file_over(&mut self, path: Option<PathBuf>, dropped: bool));
+  delegate_engine!(fn on_file_dragged(&mut self, file_drag: FileDrag));
+  delegate_engine!(fn on_theme_changed(&mut self, theme: Theme));
   delegate_engine!(fn on_resumed(&mut self));
   delegate_engine!(fn on_suspended(&mut self));
   delegate_engine!(fn on_close_requested(&mut self) -> bool);
@@ -390,8 +390,10 @@ pub trait EngineEventHandler<T: 'static = ()>: Sized + 'static {
   fn on_focus_changed(&mut self, context: EngineContext, state: bool) {}
   /// See [`EventHandler::on_occlusion_changed`].
   fn on_occlusion_changed(&mut self, context: EngineContext, state: bool) {}
-  /// See [`EventHandler::on_file_dropped`].
-  fn on_file_over(&mut self, context: EngineContext, path: Option<PathBuf>, dropped: bool) {}
+  /// See [`EventHandler::on_file_dragged`].
+  fn on_file_dragged(&mut self, context: EngineContext, file_drag: FileDrag) {}
+  /// See [`EventHandler::on_theme_change`].
+  fn on_theme_changed(&mut self, context: EngineContext, theme: Theme) {}
   /// See [`EventHandler::on_resized`].
   fn on_resized(&mut self, context: EngineContext, window_size: PhysicalSize<u32>, scale_factor: f64) {}
   /// See [`EventHandler::on_resumed`].

@@ -86,7 +86,10 @@ pub trait EventHandler<W: HasWindow, T = ()>: Sized + 'static {
   fn on_occlusion_changed(&mut self, window_state: &WindowState<W>, state: bool) {}
 
   /// Called when a file is dropped, hovered, or a file hover is cancelled in the application window.
-  fn on_file_over(&mut self, window_state: &WindowState<W>, path: Option<PathBuf>, dropped: bool) {}
+  fn on_file_dragged(&mut self, window_state: &WindowState<W>, file_drag: FileDrag) {}
+
+  /// Called upon [`WindowEvent::ThemeChanged`].
+  fn on_theme_changed(&mut self, window_state: &WindowState<W>, theme: Theme) {}
 
   /// Called when either the window has been resized or the scale factor has changed.
   fn on_resized(&mut self, window_state: &WindowState<W>, window_size: PhysicalSize<u32>, scale_factor: f64) {}
@@ -561,6 +564,23 @@ pub struct AxisMotion {
   pub value: f64
 }
 
+/// Relates to files being dragged or dropped on the window.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FileDrag {
+  /// See [`WindowEvent::DroppedFile`]
+  Drop {
+    /// The path to the file that was dropped.
+    path: PathBuf
+  },
+  /// See [`WindowEvent::HoveredFile`]
+  HoverStart {
+    /// The path to the file that was hovered.
+    path: PathBuf
+  },
+  /// See [`WindowEvent::HoveredFileCancelled`]
+  HoverEnd
+}
+
 
 
 /// Represents types that are 'window-like' or hold a window.
@@ -607,6 +627,7 @@ impl_has_window_deref!(
 pub struct WindowState<W: HasWindow> {
   initialized: bool,
   input_state: InputState,
+  theme: Option<Theme>,
   dropped_file: Option<PathBuf>,
   scale_factor: f64,
   window_size: PhysicalSize<u32>,
@@ -619,9 +640,10 @@ impl<W: HasWindow> WindowState<W> {
     WindowState {
       initialized: false,
       input_state: InputState::default(),
+      theme: window.theme(),
       dropped_file: None,
       scale_factor: window.scale_factor(),
-      window_size: window.inner_size().into(),
+      window_size: window.inner_size(),
       window_holder
     }
   }
@@ -653,7 +675,7 @@ impl<W: HasWindow> WindowState<W> {
 
   /// Shortcut to [`Window::theme`].
   pub fn theme(&self) -> Option<Theme> {
-    self.window().theme()
+    self.theme
   }
 
   /// Shortcut to [`Window::has_focus`].
@@ -724,6 +746,8 @@ impl<W: HasWindow> WindowState<W> {
       WindowEvent::ActivationTokenDone { .. } => (),
       WindowEvent::Focused(focused_state) => {
         if !focused_state {
+          // Input state gets automatically reset on focus lost
+          // in order to avoid breaking button press/release pairs
           self.input_state = InputState::default();
         };
         handler.on_focus_changed(self, focused_state);
@@ -732,14 +756,14 @@ impl<W: HasWindow> WindowState<W> {
         handler.on_occlusion_changed(self, occluded_state);
       },
       WindowEvent::HoveredFileCancelled => {
-        handler.on_file_over(self, None, false);
+        handler.on_file_dragged(self, FileDrag::HoverEnd);
       },
       WindowEvent::HoveredFile(path) => {
-        handler.on_file_over(self, Some(path), false);
+        handler.on_file_dragged(self, FileDrag::HoverStart { path });
       },
       WindowEvent::DroppedFile(path) => {
         self.dropped_file = Some(path.clone());
-        handler.on_file_over(self, Some(path), true);
+        handler.on_file_dragged(self, FileDrag::Drop { path });
       },
       WindowEvent::Moved(..) => (),
       WindowEvent::Resized(window_physical_inner_size) => {
@@ -811,7 +835,10 @@ impl<W: HasWindow> WindowState<W> {
         self.input_state.handle_axis_motion(axis_motion);
         handler.on_axis_motion(self, axis_motion);
       },
-      WindowEvent::ThemeChanged(..) => ()
+      WindowEvent::ThemeChanged(theme) => {
+        self.theme = Some(theme);
+        handler.on_theme_changed(self, theme);
+      }
     }
   }
 }
